@@ -9,6 +9,12 @@ import (
 	"io"
 )
 
+func GenerateServerID() string {
+	buff := make([]byte, 32)
+	io.ReadFull(rand.Reader, buff)
+	return hex.EncodeToString(buff)
+}
+
 func HashKey(key string) string {
 	hash := md5.Sum([]byte(key))
 	return hex.EncodeToString(hash[:])
