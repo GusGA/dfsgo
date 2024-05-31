@@ -10,13 +10,13 @@ import (
 func TestInMemoryKVStore_Get(t *testing.T) {
 	t.Parallel()
 
-	kv := &InMemoryKVStore{
-		data: map[string]string{
-			"127.0.0.1:3000": "alive",
-			"127.0.0.1:4000": "alive",
-			"127.0.0.1:5000": "dead",
-			"127.0.0.1:6000": "dead",
-		},
+	kv := NewInMemoryKVStore[string, string]()
+
+	kv.data = map[string]string{
+		"127.0.0.1:3000": "alive",
+		"127.0.0.1:4000": "alive",
+		"127.0.0.1:5000": "dead",
+		"127.0.0.1:6000": "dead",
 	}
 
 	for i := 3; i <= 6; i++ {
@@ -35,9 +35,8 @@ func TestInMemoryKVStore_Get(t *testing.T) {
 func TestInMemoryKVStore_Set(t *testing.T) {
 	t.Parallel()
 
-	kv := &InMemoryKVStore{
-		data: map[string]string{},
-	}
+	kv := NewInMemoryKVStore[string, string]()
+
 	values := []string{"alive", "dead"}
 
 	for i := 1; i <= 20; i++ {
