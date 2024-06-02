@@ -5,10 +5,13 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
 	"go.uber.org/zap"
+
+	fscrypto "github.com/gusga/dfsgo/crypto"
 )
 
 // type StorageOptions
@@ -100,6 +103,40 @@ func (s *Storage) Delete(serverID string, key string) error {
 	return os.RemoveAll(firstPathNameWithRoot)
 }
 
+func (s *Storage) Write(serverID string, key string, r io.Reader) (int64, error) {
+	return s.writeStream(serverID, key, r)
+}
+
+func (s *Storage) WriteDecrypt(encKey []byte, id string, key string, r io.Reader) (int64, error) {
+	f, err := s.openFileForWriting(id, key)
+	if err != nil {
+		return 0, err
+	}
+	n, err := fscrypto.DecryptContent(encKey, r, f)
+	return int64(n), err
+}
+
+func (s *Storage) Read(serverID string, key string) (int64, io.Reader, error) {
+	return s.readStream(serverID, key)
+}
+
+func (s *Storage) readStream(serverID string, key string) (int64, io.ReadCloser, error) {
+	pathKey := s.PathTransformFunc(key)
+	fullPathWithRoot := fmt.Sprintf("%s/%s/%s", s.Root, serverID, pathKey.FullPath())
+
+	file, err := os.Open(fullPathWithRoot)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	fi, err := file.Stat()
+	if err != nil {
+		return 0, nil, err
+	}
+
+	return fi.Size(), file, nil
+}
+
 func (s *Storage) openFileForWriting(serverID, key string) (*os.File, error) {
 	pathKey := s.PathTransformFunc(key)
 	pathNameWithRoot := fmt.Sprintf("%s/%s/%s", s.Root, serverID, pathKey.pathName)
@@ -110,4 +147,12 @@ func (s *Storage) openFileForWriting(serverID, key string) (*os.File, error) {
 	fullPathWithRoot := fmt.Sprintf("%s/%s/%s", s.Root, serverID, pathKey.FullPath())
 
 	return os.Create(fullPathWithRoot)
+}
+
+func (s *Storage) writeStream(id string, key string, r io.Reader) (int64, error) {
+	f, err := s.openFileForWriting(id, key)
+	if err != nil {
+		return 0, err
+	}
+	return io.Copy(f, r)
 }
