@@ -43,17 +43,17 @@ type TCPTransportOpts struct {
 
 type TCPTransport struct {
 	TCPTransportOpts
-	OnPeer     func(Peer) error
-	listener   net.Listener
-	rpcch      chan RPC
-	closedPeer chan string
+	OnPeer       func(Peer) error
+	listener     net.Listener
+	rpcCh        chan RPC
+	closedPeerCh chan string
 }
 
 func NewTCPTransport(opts TCPTransportOpts) *TCPTransport {
 	transport := &TCPTransport{
 		TCPTransportOpts: opts,
-		rpcch:            make(chan RPC, 1024),
-		closedPeer:       make(chan string),
+		rpcCh:            make(chan RPC, 1024),
+		closedPeerCh:     make(chan string, 1),
 	}
 
 	if opts.Decoder == nil {
@@ -66,11 +66,11 @@ func NewTCPTransport(opts TCPTransportOpts) *TCPTransport {
 // Consume implements the Tranport interface, which will return read-only channel
 // for reading the incoming messages received from another peer in the network.
 func (t *TCPTransport) Consume() <-chan RPC {
-	return t.rpcch
+	return t.rpcCh
 }
 
 func (t *TCPTransport) ClosedPeer() <-chan string {
-	return t.closedPeer
+	return t.closedPeerCh
 }
 
 // Close implements the Transport interface.
@@ -81,7 +81,22 @@ func (t *TCPTransport) Close() error {
 // Addr implements the Transport interface return the address
 // the transport is accepting connections.
 func (t *TCPTransport) Addr() string {
-	return t.ListenAddr
+	if t.listener != nil {
+		return t.listener.Addr().String()
+	} else {
+		return t.ListenAddr
+	}
+}
+
+func (t *TCPTransport) Dial(addr string) error {
+	conn, err := net.Dial("tcp", addr)
+	if err != nil {
+		return err
+	}
+
+	go t.handleConn(conn, true)
+
+	return nil
 }
 
 func (t *TCPTransport) ListenAndAccept() error {
@@ -117,13 +132,19 @@ func (t *TCPTransport) startAcceptLoop() {
 func (t *TCPTransport) handleConn(conn net.Conn, outbound bool) {
 	var err error
 	defer func() {
-		t.Logger.Error(
+		remoteAddr := conn.RemoteAddr().String()
+		t.Logger.Info(
 			"dropping peer connection",
-			zap.Error(err),
-			zap.String("peer_address", conn.RemoteAddr().String()),
+			zap.String("cause", err.Error()),
+			zap.String("peer_address", remoteAddr),
 		)
+		t.closedPeerCh <- remoteAddr
+		t.Logger.Info(
+			"sending address peer connection",
+			zap.String("peer_address", remoteAddr),
+		)
+
 		conn.Close()
-		t.closedPeer <- conn.RemoteAddr().String()
 	}()
 
 	peer := NewTCPPeer(conn, outbound)

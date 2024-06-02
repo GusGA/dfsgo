@@ -70,6 +70,11 @@ func (s *FileServer) OnPeer(p transport.Peer) error {
 	return nil
 }
 
+func (s *FileServer) Close() {
+	s.Transport.Close()
+	s.DiscoverySrv.Close()
+}
+
 func (s *FileServer) loop() {
 	defer func() {
 		s.Logger.Warn("file server stopped due to error or user quit action")
@@ -90,7 +95,6 @@ func (s *FileServer) loop() {
 		case addr := <-s.Transport.ClosedPeer():
 			s.Logger.Info("removing peer from list", zap.String("remote_peer_addr", addr))
 			s.peerStore.Delete(addr)
-			s.DiscoverySrv.RemoveDeadNode(discovery.Node{Address: addr})
 		case <-s.quitch:
 			return
 		}
@@ -198,8 +202,10 @@ func (s *FileServer) bootstrapNetwork() error {
 
 		go func(addr string) {
 			s.Logger.Info("attemping to connect with remote", zap.String("remote_addr", addr), zap.String("local_addr", s.Transport.Addr()))
-			if err := s.Transport.Dial(addr); err != nil {
-				s.Logger.Error("dial error", zap.Error(err), zap.String("remote_addr", addr))
+			err := s.Transport.Dial(addr)
+			if err != nil {
+				s.Logger.Info("dial error", zap.Error(err), zap.String("remote_addr", addr))
+				s.DiscoverySrv.RemoveDeadNode(discovery.Node{Address: addr})
 			}
 		}(node.Address)
 	}
