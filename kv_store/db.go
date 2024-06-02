@@ -1,6 +1,7 @@
 package kvstore
 
-type KVStore interface {
-	Set(key, value string)
-	Get(key string) (string, bool)
+type KVStore[K any, V any] interface {
+	Set(K, V)
+	Get(K) (V, bool)
+	Delete(K)
 }

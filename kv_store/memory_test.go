@@ -2,6 +2,7 @@ package kvstore
 
 import (
 	"fmt"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -48,4 +49,35 @@ func TestInMemoryKVStore_Set(t *testing.T) {
 		}()
 
 	}
+}
+
+func TestInMemoryKVStore_Delete(t *testing.T) {
+	t.Parallel()
+	wg := &sync.WaitGroup{}
+	kv := NewInMemoryKVStore[string, string]()
+
+	kv.data = map[string]string{
+		"127.0.0.1:3000": "alive",
+		"127.0.0.1:4000": "alive",
+		"127.0.0.1:5000": "dead",
+		"127.0.0.1:6000": "dead",
+	}
+	wg.Add(4)
+	for i := 3; i <= 6; i++ {
+		key := fmt.Sprintf("127.0.0.1:%d000", i)
+		go func(key string) {
+			kv.Delete(key)
+			wg.Done()
+		}(key)
+	}
+
+	wg.Wait()
+
+	for i := 3; i <= 6; i++ {
+		key := fmt.Sprintf("127.0.0.1:%d000", i)
+
+		_, ok := kv.Get(key)
+		require.False(t, ok)
+	}
+
 }

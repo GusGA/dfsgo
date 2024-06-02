@@ -27,3 +27,9 @@ func (kv *InMemoryKVStore[K, V]) Set(key K, value V) {
 
 	kv.data[key] = value
 }
+
+func (kv *InMemoryKVStore[K, V]) Delete(key K) {
+	kv.mu.Lock()
+	defer kv.mu.Unlock()
+	delete(kv.data, key)
+}
