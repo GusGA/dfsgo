@@ -14,7 +14,7 @@ type Node struct {
 
 type DiscoveryService interface {
 	GetNodes() ([]Node, error)
-	AddNode(string, Node) error
-	// ReportDeadNode(Node) error
+	AddNode(Node) error
+	RemoveDeadNode(Node) error
 	Close() error
 }

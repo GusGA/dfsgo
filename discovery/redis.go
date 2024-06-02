@@ -20,7 +20,7 @@ type RedisDiscoverySrv struct {
 	logger *zap.Logger
 }
 
-func NewRedisDiscoverySrv(redisURL string, ctx context.Context) (*RedisDiscoverySrv, error) {
+func NewRedisDiscoverySrv(ctx context.Context, redisURL string) (*RedisDiscoverySrv, error) {
 	opts, err := redis.ParseURL(redisURL)
 	if err != nil {
 		return nil, err
@@ -67,4 +67,13 @@ func (srv *RedisDiscoverySrv) GetNodes() ([]Node, error) {
 
 	return nodes, nil
 
+}
+
+func (srv *RedisDiscoverySrv) RemoveDeadNode(n Node) error {
+	err := srv.client.HDel(srv.ctx, discoveryKey, n.Address).Err()
+	if err != nil {
+		srv.logger.Error("could not delete node from discovery service", zap.String("node_addr", n.Address))
+		return err
+	}
+	return nil
 }

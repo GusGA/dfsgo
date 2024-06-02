@@ -149,3 +149,49 @@ func TestRedisDiscoverySrv_GetNodes(t *testing.T) {
 		})
 	}
 }
+
+func TestRedisDiscoverySrv_RemoveDeadNode(t *testing.T) {
+	var ctx = context.TODO()
+	client, mock := redismock.NewClientMock()
+
+	srv := &RedisDiscoverySrv{
+		client: client,
+		ctx:    ctx,
+		logger: zap.NewExample(),
+	}
+
+	type args struct {
+		n Node
+	}
+	tests := []struct {
+		name        string
+		args        args
+		wantErr     bool
+		expectedErr error
+	}{
+		{
+			name: "successfully delete a desconnected node",
+			args: args{n: Node{
+				Address: "127.0.0.1:5000",
+			}},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			expectedCmd := mock.ExpectHDel(discoveryKey, tt.args.n.Address)
+			if tt.wantErr {
+				expectedCmd.SetErr(tt.expectedErr)
+			} else {
+				expectedCmd.SetVal(1)
+			}
+			err := srv.RemoveDeadNode(tt.args.n)
+			if tt.wantErr {
+				require.Error(t, err)
+			} else {
+				require.Nil(t, err)
+			}
+
+		})
+	}
+}
