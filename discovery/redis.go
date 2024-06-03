@@ -20,7 +20,7 @@ type RedisDiscoverySrv struct {
 	logger *zap.Logger
 }
 
-func NewRedisDiscoverySrv(ctx context.Context, redisURL string) (*RedisDiscoverySrv, error) {
+func NewRedisDiscoverySrv(ctx context.Context, redisURL string, logger *zap.Logger) (*RedisDiscoverySrv, error) {
 	opts, err := redis.ParseURL(redisURL)
 	if err != nil {
 		return nil, err
@@ -29,6 +29,7 @@ func NewRedisDiscoverySrv(ctx context.Context, redisURL string) (*RedisDiscovery
 	return &RedisDiscoverySrv{
 		client: client,
 		ctx:    ctx,
+		logger: logger,
 	}, nil
 }
 
